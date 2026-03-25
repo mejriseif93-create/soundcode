@@ -81,10 +81,19 @@ def decompress_data(data: bytes, method: str) -> bytes:
 def build_metadata_chunk(file_uuid: bytes, filename: str, total_chunks: int,
                          original_size: int, compressed_size: int,
                          compression: str, file_hash: str) -> bytes:
-    """Chunk index 0 = metadata (JSON)."""
+    """Chunk index 0 = metadata (JSON).
+    
+    Guards against the metadata payload itself exceeding MAX_PAYLOAD by
+    truncating an excessively long filename — all other fields are fixed-length.
+    """
+    # Truncate filename if it would blow the QR size limit.
+    # A safe budget: MAX_PAYLOAD minus ~120 bytes for all other JSON fields.
+    MAX_FILENAME = MAX_PAYLOAD - 120
+    safe_filename = filename if len(filename.encode("utf-8")) <= MAX_FILENAME else filename[:MAX_FILENAME]
+
     meta = {
         "magic": MAGIC.hex(),
-        "filename": filename,
+        "filename": safe_filename,
         "total_chunks": total_chunks,
         "original_size": original_size,
         "compressed_size": compressed_size,
@@ -93,6 +102,15 @@ def build_metadata_chunk(file_uuid: bytes, filename: str, total_chunks: int,
         "version": "1.0",
     }
     payload = json.dumps(meta).encode("utf-8")
+
+    # Hard safety check — should never trigger after the truncation above,
+    # but guards against unexpected growth (e.g. huge total_chunks number).
+    if HEADER_SIZE + len(payload) > MAX_QR_BINARY:
+        raise ValueError(
+            f"Metadata chunk too large ({HEADER_SIZE + len(payload)} bytes). "
+            "Try shortening the filename."
+        )
+
     crc = zlib.crc32(payload) & 0xFFFFFFFF
     header = file_uuid + struct.pack(">I", 0) + struct.pack(">I", total_chunks) + struct.pack(">I", crc)
     return header + payload
@@ -124,7 +142,10 @@ def parse_chunk(raw: bytes) -> dict | None:
 def generate_qr_image(data: bytes, box_size: int = 10, border: int = 4,
                       dark_mode: bool = False) -> Image.Image:
     """Generate a QR code image from binary data."""
-    # Guard: raise a clear error before the qrcode library raises a cryptic one
+    # Guard: raise clear errors before the qrcode library raises cryptic ones.
+    # len==0 -> glog(0) crash;  len>MAX -> data_cache overflow crash.
+    if len(data) == 0:
+        raise ValueError("Cannot generate a QR code for an empty chunk (0 bytes).")
     if len(data) > MAX_QR_BINARY:
         raise ValueError(
             f"Chunk too large: {len(data)} bytes exceeds QR v40-L max of "
@@ -233,7 +254,13 @@ with tab_gen:
 
         # FIX: chunk_payload_size must not exceed MAX_PAYLOAD (QR capacity minus header overhead)
         chunk_payload_size = min(settings["chunk_size"], MAX_PAYLOAD)
-        data_chunks = [compressed[i:i+chunk_payload_size] for i in range(0, len(compressed), chunk_payload_size)]
+        # FIX: filter out any empty trailing chunk that arises when compressed size is an exact
+        # multiple of chunk_payload_size — an empty bytes object causes the glog(0) ValueError.
+        data_chunks = [
+            compressed[i:i + chunk_payload_size]
+            for i in range(0, len(compressed), chunk_payload_size)
+            if compressed[i:i + chunk_payload_size]
+        ]
         total_chunks = len(data_chunks) + 1  # +1 for metadata chunk at index 0
 
         file_uuid = uuid.uuid4().bytes
