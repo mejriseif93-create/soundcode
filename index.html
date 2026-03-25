@@ -3,826 +3,367 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0d0d0d">
-<title>SoundCode</title>
+<title>SoundCode - Unified Code App</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap');
-:root{--bg:#0d0d0d;--sf:#161616;--sf2:#1e1e1e;--bd:#2a2a2a;--ac:#00ff88;--acdim:rgba(0,255,136,0.1);--ac2:#ff4466;--tx:#f0f0f0;--tx2:#777;--tx3:#444;--r:14px;--r2:10px;}
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-family:'Space Grotesk',sans-serif;}
-.app{display:flex;flex-direction:column;height:100dvh;max-width:480px;margin:0 auto;}
-
-/* HEADER */
-.hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;padding-top:calc(14px + env(safe-area-inset-top,0px));background:var(--bg);border-bottom:1px solid var(--bd);flex-shrink:0;}
-.logo{display:flex;align-items:center;gap:10px;}
-.logo-ic{width:34px;height:34px;background:var(--ac);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;}
-.logo-tx{font-size:17px;font-weight:700;}
-.logo-tx span{color:var(--ac);}
-.hdr-tag{font-family:'Fira Code',monospace;font-size:10px;color:var(--ac);background:var(--acdim);border:1px solid rgba(0,255,136,0.25);padding:3px 9px;border-radius:20px;}
-
-/* TABS */
-.tabs{display:flex;padding:10px 14px;gap:8px;background:var(--bg);flex-shrink:0;}
-.tab{flex:1;padding:10px 6px;border-radius:var(--r2);text-align:center;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;color:var(--tx2);background:var(--sf);border:1px solid var(--bd);}
-.tab.on{background:var(--ac);color:#000;border-color:var(--ac);}
-
-/* SCREEN */
-.scr{display:none;flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px;padding-bottom:50px;}
-.scr.on{display:block;animation:up .25s ease;}
-@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-
-/* UPLOAD DROP */
-.drop{border:2px dashed var(--bd);border-radius:var(--r);padding:36px 18px;text-align:center;cursor:pointer;background:var(--sf);margin-bottom:10px;transition:all .2s;}
-.drop:active,.drop.drag{border-color:var(--ac);background:var(--acdim);}
-.drop-ic{width:58px;height:58px;background:var(--acdim);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:26px;border:1px solid rgba(0,255,136,0.2);}
-.drop-t{font-size:15px;font-weight:600;margin-bottom:5px;}
-.drop-s{font-size:12px;color:var(--tx2);font-family:'Fira Code',monospace;}
-input[type=file]{display:none;}
-
-/* SONG ROW */
-.song-row{display:none;align-items:center;gap:12px;background:var(--sf2);border:1px solid var(--bd);border-radius:var(--r);padding:14px;margin-bottom:10px;}
-.song-row.on{display:flex;animation:up .3s;}
-.song-th{width:48px;height:48px;background:linear-gradient(135deg,#00ff88,#00cc66);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
-.song-inf{flex:1;min-width:0;}
-.song-n{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;}
-.song-m{font-size:11px;color:var(--tx2);font-family:'Fira Code',monospace;}
-.rm-btn{width:30px;height:30px;background:rgba(255,68,102,.1);border:1px solid rgba(255,68,102,.2);border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:var(--ac2);flex-shrink:0;}
-
-/* STATS */
-.stats{display:none;gap:8px;margin-bottom:10px;}
-.stats.on{display:flex;}
-.stat{flex:1;background:var(--sf);border:1px solid var(--bd);border-radius:var(--r2);padding:11px;text-align:center;}
-.stat-v{font-size:17px;font-weight:700;color:var(--ac);font-family:'Fira Code',monospace;}
-.stat-l{font-size:10px;color:var(--tx2);margin-top:2px;}
-
-/* BUTTONS */
-.btn{width:100%;padding:15px;background:var(--ac);color:#000;border:none;border-radius:var(--r);font-size:14px;font-weight:700;font-family:'Space Grotesk',sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .2s;margin-bottom:8px;}
-.btn:disabled{opacity:.35;cursor:not-allowed;}
-.btn:not(:disabled):active{transform:scale(.98);}
-.btn.sec{background:transparent;color:var(--tx);border:1px solid var(--bd);}
-.btn.sec:active{background:var(--sf2);}
-.btn.zip{background:#1a2a1a;color:var(--ac);border:1px solid rgba(0,255,136,0.3);}
-
-/* PROGRESS */
-.prog{display:none;background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:18px;margin-bottom:10px;}
-.prog.on{display:block;animation:up .3s;}
-.prog-row{display:flex;justify-content:space-between;margin-bottom:10px;}
-.prog-lbl{font-size:12px;color:var(--tx2);font-family:'Fira Code',monospace;}
-.prog-pct{font-size:12px;font-weight:700;color:var(--ac);font-family:'Fira Code',monospace;}
-.prog-bar{height:4px;background:var(--bd);border-radius:4px;overflow:hidden;margin-bottom:6px;}
-.prog-fill{height:100%;background:linear-gradient(90deg,var(--ac),#00ccff);border-radius:4px;transition:width .3s;width:0%;}
-.prog-step{font-size:11px;color:var(--tx3);font-family:'Fira Code',monospace;}
-
-/* QR SECTION */
-.qr-sec{display:none;margin-bottom:10px;}
-.qr-sec.on{display:block;animation:up .4s;}
-.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-.sec-t{font-size:14px;font-weight:700;}
-.badge{background:var(--acdim);color:var(--ac);border:1px solid rgba(0,255,136,0.25);font-size:10px;font-family:'Fira Code',monospace;padding:3px 10px;border-radius:20px;}
-
-/* QR SCROLL */
-.qr-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-bottom:12px;}
-.qr-scroll::-webkit-scrollbar{display:none;}
-.qr-item{flex-shrink:0;background:var(--sf2);border:1px solid var(--bd);border-radius:10px;padding:8px;text-align:center;width:120px;animation:fadeScale .3s ease forwards;opacity:0;}
-@keyframes fadeScale{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
-.qr-item canvas,.qr-item img{width:104px!important;height:104px!important;border-radius:5px;display:block;}
-.qr-num{font-size:10px;color:var(--tx2);font-family:'Fira Code',monospace;margin-top:5px;}
-
-/* ALERT */
-.alert{display:none;padding:11px 13px;border-radius:var(--r2);font-size:12px;font-family:'Fira Code',monospace;margin-bottom:10px;line-height:1.5;}
-.alert.on{display:block;animation:up .3s;}
-.alert.err{background:rgba(255,68,102,.1);border:1px solid rgba(255,68,102,.25);color:#ff7799;}
-.alert.info{background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.2);color:var(--ac);}
-.alert.warn{background:rgba(255,165,0,.08);border:1px solid rgba(255,165,0,.2);color:#ffaa44;}
-.alert.ok{background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.3);color:var(--ac);}
-
-/* SCAN MODE */
-.scan-tabs{display:flex;gap:6px;margin-bottom:10px;}
-.stab{flex:1;padding:10px;background:var(--sf);border:1px solid var(--bd);border-radius:var(--r2);text-align:center;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;color:var(--tx2);}
-.stab.on{background:var(--acdim);border-color:rgba(0,255,136,.3);color:var(--ac);}
-
-/* CAMERA */
-.cam-wrap{position:relative;border-radius:var(--r);overflow:hidden;background:#000;aspect-ratio:1;margin-bottom:10px;}
-#cam-vid{width:100%;height:100%;object-fit:cover;}
-.scan-ov{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
-.scan-fr{width:58%;aspect-ratio:1;position:relative;}
-.scan-fr::before,.scan-fr::after,.scan-fr .cbr,.scan-fr .cbl{content:'';position:absolute;width:22px;height:22px;border-color:var(--ac);border-style:solid;}
-.scan-fr::before{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 5px 0 0;}
-.scan-fr::after{top:0;left:0;border-width:3px 0 0 3px;border-radius:5px 0 0 0;}
-.scan-fr .cbr{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 5px 0;}
-.scan-fr .cbl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 5px;}
-.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--ac),transparent);animation:scanMove 2s ease-in-out infinite;}
-@keyframes scanMove{0%,100%{top:10%}50%{top:90%}}
-.cam-st{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);backdrop-filter:blur(8px);color:var(--ac);font-size:11px;font-family:'Fira Code',monospace;padding:5px 13px;border-radius:20px;white-space:nowrap;}
-
-/* SCANNED LIST */
-.scanned-list{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;}
-.sc-item{display:flex;align-items:center;gap:9px;background:var(--sf);border:1px solid var(--bd);border-radius:var(--r2);padding:9px 13px;animation:up .3s;}
-.sc-chk{width:22px;height:22px;background:rgba(0,255,136,.12);border:1px solid rgba(0,255,136,.25);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--ac);flex-shrink:0;}
-.sc-tx{font-size:11px;font-family:'Fira Code',monospace;color:var(--tx2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.sc-num{font-size:11px;font-weight:700;color:var(--ac);font-family:'Fira Code',monospace;}
-
-/* PLAYER */
-.player{display:none;background:linear-gradient(135deg,rgba(0,255,136,.07),rgba(0,204,255,.04));border:1px solid rgba(0,255,136,.2);border-radius:var(--r);padding:22px 18px;text-align:center;margin-bottom:10px;}
-.player.on{display:block;animation:fadeScale .5s ease;}
-.wave{display:flex;align-items:center;justify-content:center;gap:3px;margin-bottom:14px;}
-.wb{width:4px;border-radius:4px;background:var(--ac);animation:waveBounce 1.2s ease-in-out infinite;}
-.wb:nth-child(1){height:18px;animation-delay:0s}
-.wb:nth-child(2){height:30px;animation-delay:.1s}
-.wb:nth-child(3){height:22px;animation-delay:.2s}
-.wb:nth-child(4){height:38px;animation-delay:.3s}
-.wb:nth-child(5){height:26px;animation-delay:.4s}
-.wb:nth-child(6){height:34px;animation-delay:.2s}
-.wb:nth-child(7){height:20px;animation-delay:.1s}
-@keyframes waveBounce{0%,100%{transform:scaleY(.4);opacity:.4}50%{transform:scaleY(1);opacity:1}}
-.pl-name{font-size:15px;font-weight:700;margin-bottom:3px;}
-.pl-st{font-size:11px;color:var(--ac);font-family:'Fira Code',monospace;margin-bottom:14px;}
-audio{width:100%;border-radius:8px;margin-bottom:10px;}
-
-/* ZIP PROGRESS */
-.zip-prog{display:none;background:var(--sf);border:1px solid rgba(0,255,136,.2);border-radius:var(--r);padding:16px;margin-bottom:10px;text-align:center;}
-.zip-prog.on{display:block;animation:up .3s;}
-.zip-spinner{font-size:28px;animation:spin 1s linear infinite;margin-bottom:8px;}
-@keyframes spin{to{transform:rotate(360deg)}}
-.zip-tx{font-size:12px;font-family:'Fira Code',monospace;color:var(--ac);}
-
-/* PREVIEW PLAYER */
-.pre-player{display:none;background:linear-gradient(135deg,rgba(0,255,136,.07),rgba(0,204,255,.04));border:1px solid rgba(0,255,136,.25);border-radius:var(--r);padding:16px;margin-top:4px;}
-.pre-player.on{display:block;animation:up .4s ease;}
-.pre-top{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
-.pre-ic{width:42px;height:42px;background:linear-gradient(135deg,#00ff88,#00cc66);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
-.pre-info{flex:1;min-width:0;}
-.pre-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;}
-.pre-sub{font-size:11px;color:var(--ac);font-family:'Fira Code',monospace;}
-.pre-wave{display:flex;align-items:center;gap:2px;}
-.pwb{width:3px;border-radius:3px;background:var(--ac);animation:waveBounce 1.2s ease-in-out infinite;}
-.pwb:nth-child(1){height:10px;animation-delay:0s}.pwb:nth-child(2){height:16px;animation-delay:.1s}.pwb:nth-child(3){height:12px;animation-delay:.2s}.pwb:nth-child(4){height:20px;animation-delay:.3s}.pwb:nth-child(5){height:14px;animation-delay:.15s}
+:root { --bg: #0d0d0d; --sf: #161616; --bd: #2a2a2a; --ac: #00ff88; --tx: #f0f0f0; --tx2: #777; --r: 10px; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--tx); font-family: 'Space Grotesk', sans-serif; padding: 20px; max-width: 500px; margin: 0 auto; }
+h2 { text-align: center; margin-bottom: 20px; font-weight: 700; color: #fff; }
+h2 span { color: var(--ac); }
+.tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+.tab { flex: 1; padding: 12px; background: var(--sf); border: 1px solid var(--bd); border-radius: var(--r); text-align: center; cursor: pointer; color: var(--tx2); font-weight: 600; }
+.tab.active { background: var(--ac); color: #000; border-color: var(--ac); }
+.panel { display: none; background: var(--sf); border: 1px solid var(--bd); border-radius: var(--r); padding: 20px; }
+.panel.active { display: block; animation: up 0.3s; }
+@keyframes up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: bold; }
+input[type=number], input[type=file] { width: 100%; padding: 10px; background: #000; color: #fff; border: 1px solid var(--bd); border-radius: 5px; margin-bottom: 15px; }
+.btn { width: 100%; padding: 15px; background: var(--ac); color: #000; font-weight: bold; border: none; border-radius: var(--r); cursor: pointer; font-size: 16px; margin-bottom: 10px; }
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.status { font-family: 'Fira Code', monospace; font-size: 12px; color: var(--tx2); margin: 10px 0; min-height: 20px; }
+.down-btn { display: none; width: 100%; text-align: center; padding: 15px; background: #1a2a1a; color: var(--ac); border: 1px solid rgba(0,255,136,0.3); border-radius: var(--r); text-decoration: none; font-weight: bold; margin-top: 10px; align-items: center; justify-content: center; }
+canvas { max-width: 100%; height: auto; border-radius: 5px; margin-top: 15px; display: block; }
 </style>
+<!-- Use FZSTD for Zstandard compression in the browser -->
+<script src="https://unpkg.com/fzstd"></script>
 </head>
 <body>
-<div class="app">
 
-  <!-- HEADER -->
-  <div class="hdr">
-    <div class="logo">
-      <div class="logo-ic">🎵</div>
-      <div class="logo-tx">Sound<span>Code</span></div>
-    </div>
-    <div class="hdr-tag">OFFLINE ●</div>
-  </div>
+<h2>🎵 Sound<span>Code</span></h2>
 
-  <!-- TABS -->
-  <div class="tabs">
-    <div class="tab on" onclick="switchTab('enc')">⬆ تحويل أغنية</div>
-    <div class="tab" onclick="switchTab('dec')">⬇ استعادة أغنية</div>
-  </div>
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('enc')">⬆ تحويل (Encode)</div>
+  <div class="tab" onclick="switchTab('dec')">⬇ استعادة (Decode)</div>
+</div>
 
-  <!-- ══ ENCODE ══ -->
-  <div class="scr on" id="scr-enc">
+<!-- ENCODE -->
+<div id="enc" class="panel active">
+  <label>حجم الخلية بالبكسل (Cell Size):</label>
+  <input type="number" id="cell_size" value="4" min="1" max="10" placeholder="مثال: 4">
+  <p style="font-size:11px; color:#aaa; margin-top:-10px; margin-bottom:15px;">حجم أصغر = كود أصغر، حجم أكبر = أسهل في القراءة.</p>
+  
+  <label>اختر ملف (صوت، صورة، أي ملف):</label>
+  <input type="file" id="fileIn">
+  
+  <button class="btn" id="encBtn" onclick="encodeApp()">⚡ توليد صورة SoundCode الموحدة</button>
+  <div class="status" id="statusEnc">بانتظار الملف...</div>
+  
+  <a class="down-btn" id="downBtn">⬇ تحميل الكود</a>
+  <canvas id="canvasOut"></canvas>
+</div>
 
-    <label for="mp3in">
-      <div class="drop" id="drop-zone"
-        ondragover="event.preventDefault();this.classList.add('drag')"
-        ondragleave="this.classList.remove('drag')"
-        ondrop="this.classList.remove('drag');handleDrop(event)">
-        <div class="drop-ic">🎵</div>
-        <div class="drop-t">اختر ملف MP3</div>
-        <div class="drop-s">أو اسحب الملف هنا</div>
-      </div>
-    </label>
-    <input type="file" id="mp3in" accept=".mp3,.m4a,.aac,.ogg,audio/*" onchange="handleMP3(event)">
-
-    <div class="song-row" id="song-row">
-      <div class="song-th">🎶</div>
-      <div class="song-inf">
-        <div class="song-n" id="song-name">—</div>
-        <div class="song-m" id="song-meta">—</div>
-      </div>
-      <div class="rm-btn" onclick="resetEnc()">✕</div>
-    </div>
-
-    <div class="stats" id="enc-stats">
-      <div class="stat"><div class="stat-v" id="s-size">—</div><div class="stat-l">الحجم</div></div>
-      <div class="stat"><div class="stat-v" id="s-qr">—</div><div class="stat-l">عدد QR</div></div>
-      <div class="stat"><div class="stat-v" id="s-time">—</div><div class="stat-l">وقت تقريبي</div></div>
-    </div>
-
-    <div class="alert" id="enc-alert"></div>
-
-    <button class="btn" id="enc-btn" onclick="startEncode()" disabled>⚡ تحويل إلى QR Codes</button>
-
-    <div class="prog" id="enc-prog">
-      <div class="prog-row">
-        <span class="prog-lbl" id="prog-lbl">جاري...</span>
-        <span class="prog-pct" id="prog-pct">0%</span>
-      </div>
-      <div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div>
-      <div class="prog-step" id="prog-step">يرجى الانتظار</div>
-    </div>
-
-    <div class="qr-sec" id="qr-sec">
-      <div class="sec-hdr">
-        <div class="sec-t">🎯 رموز QR الناتجة</div>
-        <div class="badge" id="qr-badge">0 رمز</div>
-      </div>
-      <div class="qr-scroll" id="qr-scroll"></div>
-
-      <!-- ZIP DOWNLOAD PROGRESS -->
-      <div class="zip-prog" id="zip-prog">
-        <div class="zip-spinner">📦</div>
-        <div class="zip-tx" id="zip-tx">جاري تجهيز ملف ZIP...</div>
-      </div>
-
-      <button class="btn zip" id="zip-btn" onclick="downloadZIP()">📦 تحميل كل الرموز دفعة واحدة (ZIP)</button>
-      <button class="btn sec" onclick="resetEnc()">↺ أغنية جديدة</button>
-
-      <!-- PREVIEW PLAYER -->
-      <div class="pre-player" id="pre-player">
-        <div class="pre-top">
-          <div class="pre-ic">🎧</div>
-          <div class="pre-info">
-            <div class="pre-name" id="pre-name">—</div>
-            <div class="pre-sub">▶ معاينة الأغنية قبل الإرسال</div>
-          </div>
-          <div class="pre-wave">
-            <div class="pwb"></div><div class="pwb"></div>
-            <div class="pwb"></div><div class="pwb"></div><div class="pwb"></div>
-          </div>
-        </div>
-        <audio id="pre-audio" controls style="width:100%;border-radius:8px;"></audio>
-      </div>
-    </div>
-
-  </div>
-
-  <!-- ══ DECODE ══ -->
-  <div class="scr" id="scr-dec">
-
-    <div class="scan-tabs">
-      <div class="stab on" id="stab-cam" onclick="setMode('cam')">📷 كاميرا</div>
-      <div class="stab" id="stab-up" onclick="setMode('up')">🖼 رفع صور</div>
-    </div>
-
-    <!-- CAMERA -->
-    <div id="mode-cam">
-      <div class="cam-wrap">
-        <video id="cam-vid" autoplay playsinline muted></video>
-        <div class="scan-ov">
-          <div class="scan-fr">
-            <div class="cbr"></div><div class="cbl"></div>
-            <div class="scan-line"></div>
-          </div>
-        </div>
-        <div class="cam-st" id="cam-st">انقر لبدء الكاميرا</div>
-      </div>
-      <button class="btn" id="cam-btn" onclick="toggleCam()">📷 بدء المسح</button>
-    </div>
-
-    <!-- UPLOAD -->
-    <div id="mode-up" style="display:none">
-      <label for="qrin">
-        <div class="drop">
-          <div class="drop-ic">🔍</div>
-          <div class="drop-t">ارفع صور QR</div>
-          <div class="drop-s">اختر أكثر من صورة معاً</div>
-        </div>
-      </label>
-      <input type="file" id="qrin" accept="image/*" multiple onchange="handleQRUp(event)">
-    </div>
-
-    <div class="alert" id="dec-alert"></div>
-
-    <div id="dec-body" style="display:none">
-      <div class="sec-hdr" style="margin-bottom:8px">
-        <div class="sec-t">رموز مقروءة</div>
-        <div class="badge" id="sc-badge">0 / ?</div>
-      </div>
-      <div class="scanned-list" id="sc-list"></div>
-      <button class="btn" id="dec-btn" onclick="reconstruct()" disabled>🎵 استعادة الأغنية</button>
-      <button class="btn sec" onclick="resetDec()">↺ مسح جديد</button>
-    </div>
-
-    <div class="player" id="player">
-      <div class="wave">
-        <div class="wb"></div><div class="wb"></div><div class="wb"></div>
-        <div class="wb"></div><div class="wb"></div><div class="wb"></div><div class="wb"></div>
-      </div>
-      <div class="pl-name" id="pl-name">أغنية مستعادة</div>
-      <div class="pl-st">✓ تمت الاستعادة — offline 100%</div>
-      <audio id="audio-el" controls></audio>
-      <button class="btn" onclick="saveAudio()">⬇ حفظ MP3</button>
-      <button class="btn sec" onclick="resetDec()">↺ مسح جديد</button>
-    </div>
-
-  </div>
+<!-- DECODE -->
+<div id="dec" class="panel">
+  <label>الكاميرا لا تدعم الأكواد العملاقة حالياً.<br>اختر صورة الكود (PNG) مباشرة:</label>
+  <input type="file" id="imgIn" accept="image/png, image/jpeg">
+  
+  <button class="btn" id="decBtn" onclick="decodeApp()">🔍 استخراج الملف السري</button>
+  <div class="status" id="statusDec">بانتظار الصورة...</div>
+  
+  <a class="down-btn" id="downDecBtn">⬇ استرجاع (حفظ) الملف</a>
 </div>
 
 <script>
-// ══════════════════════════════════════════
-// GLOBALS
-// ══════════════════════════════════════════
-const CHUNK = 800; // smaller chunks = more reliable QR reading
-let mp3File=null, mp3B64=null;
-let qrPayloads=[];        // store raw payloads for ZIP
-let qrCanvases=[];        // store canvas refs
-let decodedMap={}, totalExp=null, songMeta={};
-let audioBlob=null, camStream=null, scanIv=null, jsQRready=false;
-let scanMode='cam';
-
-// ══════════════════════════════════════════
-// TABS
-// ══════════════════════════════════════════
-function switchTab(t){
-  ['enc','dec'].forEach(s=>{
-    document.getElementById('scr-'+s).classList.toggle('on',s===t);
-    document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('on',(i===0&&t==='enc')||(i===1&&t==='dec')));
-  });
-  if(t==='dec') loadJsQR();
-  else stopCam();
+function switchTab(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
 }
 
-// ══════════════════════════════════════════
-// ENCODE — FILE INPUT
-// ══════════════════════════════════════════
-function handleDrop(e){
-  e.preventDefault();
-  const f=e.dataTransfer.files[0];
-  if(f) loadMP3(f);
-}
-function handleMP3(e){ if(e.target.files[0]) loadMP3(e.target.files[0]); }
-
-function loadMP3(file){
-  const MAX=15*1024*1024;
-  if(file.size>MAX){ showAlert('enc-alert','err',`⚠ الحد الأقصى 15MB. حجم الملف: ${fmtSize(file.size)}`); return; }
-
-  mp3File=file;
-  hideAlert('enc-alert');
-  document.getElementById('song-row').classList.add('on');
-  document.getElementById('song-name').textContent=file.name;
-
-  // Read as ArrayBuffer — most reliable on Android Chrome
-  const r=new FileReader();
-  r.onload=ev=>{
-    // Convert to base64 in chunks to avoid stack overflow on large files
-    const u8=new Uint8Array(ev.target.result);
-    mp3B64=uint8ToB64(u8);
-
-    const n=Math.ceil(mp3B64.length/CHUNK);
-    const secs=Math.ceil(n*0.08);
-
-    document.getElementById('song-meta').textContent=`${fmtSize(file.size)} · ${n} رمز QR`;
-    document.getElementById('enc-stats').classList.add('on');
-    document.getElementById('s-size').textContent=fmtSize(file.size);
-    document.getElementById('s-qr').textContent=n;
-    document.getElementById('s-time').textContent=`~${secs}ث`;
-    document.getElementById('enc-btn').disabled=false;
-    showAlert('enc-alert','info',`📊 سيتم توليد ${n} رمز QR — حجم كل رمز ${CHUNK} حرف`);
-  };
-  r.onerror=()=>showAlert('enc-alert','err','⚠ فشل قراءة الملف. جرب مرة أخرى.');
-  r.readAsArrayBuffer(file);
+// Helpers
+async function sha256(buffer) {
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  return new Uint8Array(hashBuffer);
 }
 
-// Safe base64 for large files — avoids "Maximum call stack" on Android
-function uint8ToB64(u8){
-  let bin='';
-  const BLOCK=8192;
-  for(let i=0;i<u8.length;i+=BLOCK){
-    bin+=String.fromCharCode.apply(null, u8.subarray(i,i+BLOCK));
+function stringToUint8(str) {
+  return new TextEncoder().encode(str);
+}
+function uint8ToString(u8) {
+  return new TextDecoder().decode(u8);
+}
+
+function bufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
   }
-  return btoa(bin);
+  return btoa(binary);
 }
 
-function resetEnc(){
-  mp3File=null; mp3B64=null; qrPayloads=[]; qrCanvases=[];
-  document.getElementById('song-row').classList.remove('on');
-  document.getElementById('enc-stats').classList.remove('on');
-  document.getElementById('enc-btn').disabled=true;
-  document.getElementById('enc-btn').textContent='⚡ تحويل إلى QR Codes';
-  document.getElementById('enc-prog').classList.remove('on');
-  document.getElementById('qr-sec').classList.remove('on');
-  document.getElementById('qr-scroll').innerHTML='';
-  document.getElementById('mp3in').value='';
-  document.getElementById('pre-player').classList.remove('on');
-  document.getElementById('pre-audio').src='';
-  hideAlert('enc-alert');
-}
-
-// ══════════════════════════════════════════
-// ENCODE — GENERATE QR
-// ══════════════════════════════════════════
-async function startEncode(){
-  if(!mp3B64) return;
-
-  // Load QRCode lib if needed
-  if(!window.QRCode) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js');
-
-  const btn=document.getElementById('enc-btn');
-  btn.disabled=true;
-  btn.innerHTML='<span style="display:inline-block;animation:spin 1s linear infinite">⟳</span> جاري التحويل...';
-
-  document.getElementById('enc-prog').classList.add('on');
-  document.getElementById('qr-scroll').innerHTML='';
-  qrPayloads=[]; qrCanvases=[];
-
-  const chunks=[];
-  for(let i=0;i<mp3B64.length;i+=CHUNK) chunks.push(mp3B64.slice(i,i+CHUNK));
-
-  setProg(5,'تقسيم الملف...',`${chunks.length} جزء`);
-  await sleep(80);
-
-  for(let i=0;i<chunks.length;i++){
-    const pct=Math.round(5+(i/chunks.length)*90);
-    setProg(pct,`توليد ${i+1}/${chunks.length}`,mp3File.name);
-
-    const payload=JSON.stringify({
-      sc:1, i, t:chunks.length,
-      ...(i===0?{n:mp3File.name,ty:mp3File.type||'audio/mpeg'}:{}),
-      d:chunks[i]
-    });
-    qrPayloads.push(payload);
-
-    const canvas=await makeQR(payload,i,chunks.length);
-    qrCanvases.push(canvas);
-
-    if(i%5===0) await sleep(10);
+function base64ToUint8(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
   }
-
-  setProg(100,'اكتمل! ✓','');
-  document.getElementById('qr-badge').textContent=`${chunks.length} رمز`;
-
-  await sleep(300);
-  document.getElementById('enc-prog').classList.remove('on');
-  document.getElementById('qr-sec').classList.add('on');
-  btn.innerHTML='✓ تم التحويل';
-  showAlert('enc-alert','ok',`✓ جاهز! اضغط "تحميل ZIP" لأخذ كل الرموز دفعة واحدة`);
-
-  // تفعيل مشغل المعاينة
-  if(mp3File){
-    const preAudio=document.getElementById('pre-audio');
-    preAudio.src=URL.createObjectURL(mp3File);
-    document.getElementById('pre-name').textContent=mp3File.name;
-    document.getElementById('pre-player').classList.add('on');
-    setTimeout(()=>document.getElementById('pre-player').scrollIntoView({behavior:'smooth',block:'nearest'}),400);
-  }
+  return bytes;
 }
 
-function makeQR(data,idx,total){
-  return new Promise(res=>{
-    const item=document.createElement('div');
-    item.className='qr-item';
-    item.style.animationDelay=`${Math.min(idx*0.03,0.5)}s`;
+// ═════════════════════════════════════════
+// ENCODE LOGIC
+// ═════════════════════════════════════════
+async function encodeApp() {
+  const file = document.getElementById('fileIn').files[0];
+  if (!file) return;
+  const cellSize = parseInt(document.getElementById('cell_size').value) || 2;
+  const status = document.getElementById('statusEnc');
+  const downBtn = document.getElementById('downBtn');
+  const cvs = document.getElementById('canvasOut');
+  
+  downBtn.style.display = 'none';
+  cvs.width = 0; cvs.height = 0;
+  document.getElementById('encBtn').disabled = true;
+  status.textContent = "جاري قراءة الملف...";
+  
+  setTimeout(async () => {
+    try {
+      if(!window.fzstd) throw new Error("مكتبة FZSTD لم يتم تحميلها (تتطلب انترنت).");
 
-    const qDiv=document.createElement('div');
-    const lbl=document.createElement('div');
-    lbl.className='qr-num';
-    lbl.textContent=`${idx+1} / ${total}`;
-
-    item.appendChild(qDiv);
-    item.appendChild(lbl);
-    document.getElementById('qr-scroll').appendChild(item);
-
-    let canvas=null;
-    try{
-      new QRCode(qDiv,{
-        text:data,
-        width:104,height:104,
-        colorDark:'#000000',
-        colorLight:'#ffffff',
-        correctLevel:QRCode.CorrectLevel.L
-      });
-      // QRCode.js creates either canvas or img depending on browser
-      canvas=qDiv.querySelector('canvas');
-    }catch(e){
-      qDiv.innerHTML=`<div style="width:104px;height:104px;background:#1a1a1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#555;font-family:monospace">QR ${idx+1}</div>`;
-    }
-    res(canvas);
-  });
-}
-
-// ══════════════════════════════════════════
-// ZIP DOWNLOAD
-// ══════════════════════════════════════════
-async function downloadZIP(){
-  const items=document.querySelectorAll('.qr-item');
-  if(!items.length){ showAlert('enc-alert','err','⚠ لا توجد رموز بعد'); return; }
-
-  const zipBtn=document.getElementById('zip-btn');
-  const zipProg=document.getElementById('zip-prog');
-  zipBtn.disabled=true;
-  zipProg.classList.add('on');
-  document.getElementById('zip-tx').textContent='جاري تجهيز ملف ZIP...';
-
-  if(!window.JSZip) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
-
-  try{
-    const zip=new JSZip();
-    const folder=zip.folder('SoundCode-QR');
-    let done=0;
-
-    // Process each QR item
-    const tasks=Array.from(items).map((item,i)=>new Promise(res=>{
-      const canvas=item.querySelector('canvas');
-      const img=item.querySelector('img');
-
-      const fname=`qr-${String(i+1).padStart(3,'0')}.png`;
-
-      if(canvas){
-        canvas.toBlob(blob=>{
-          if(blob) folder.file(fname,blob);
-          done++;
-          document.getElementById('zip-tx').textContent=`جاري التجهيز... ${done}/${items.length}`;
-          res();
-        },'image/png');
-      } else if(img && img.src){
-        // Convert img to canvas then blob (Android fallback)
-        const c=document.createElement('canvas');
-        c.width=104; c.height=104;
-        const ctx=c.getContext('2d');
-        const tempImg=new Image();
-        tempImg.crossOrigin='anonymous';
-        tempImg.onload=()=>{
-          ctx.drawImage(tempImg,0,0,104,104);
-          c.toBlob(blob=>{
-            if(blob) folder.file(fname,blob);
-            done++;
-            document.getElementById('zip-tx').textContent=`جاري التجهيز... ${done}/${items.length}`;
-            res();
-          },'image/png');
-        };
-        tempImg.onerror=()=>{ done++; res(); };
-        tempImg.src=img.src;
-      } else {
-        // Last resort: generate QR to new canvas
-        if(qrPayloads[i]){
-          const c=document.createElement('canvas');
-          c.width=104; c.height=104;
-          // Use basic QR generation
-          try{
-            const tmpDiv=document.createElement('div');
-            new QRCode(tmpDiv,{text:qrPayloads[i],width:104,height:104,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.L});
-            const cv=tmpDiv.querySelector('canvas');
-            if(cv){
-              cv.toBlob(blob=>{ if(blob) folder.file(fname,blob); done++; res(); },'image/png');
-            } else { done++; res(); }
-          }catch(e){ done++; res(); }
-        } else { done++; res(); }
+      const arrayBuffer = await file.arrayBuffer();
+      const origSize = arrayBuffer.byteLength;
+      const fileBytes = new Uint8Array(arrayBuffer);
+      
+      status.textContent = "جاري حساب البصمة (SHA256)...";
+      const hash = await sha256(fileBytes);
+      
+      status.textContent = "جاري ضغط الملف (Zstd)...";
+      await new Promise(r => setTimeout(r, 10)); // UI yield
+      const compressed = fzstd.compress(fileBytes);
+      const compSize = compressed.length;
+      
+      const fnameBytes = stringToUint8(file.name);
+      const fnameLen = fnameBytes.length;
+      
+      // Build Header: MAGIC (8), OrigSize (4), CompSize (4), CompID (1), SHA256 (32), FNameLen (2)
+      const headerBuf = new ArrayBuffer(51);
+      const dv = new DataView(headerBuf);
+      const u8 = new Uint8Array(headerBuf);
+      
+      u8.set(stringToUint8("SNDCODE1"), 0);
+      dv.setUint32(8, origSize, false); // Big Endian required by Python
+      dv.setUint32(12, compSize, false);
+      dv.setUint8(16, 2); // 2 = Zstd
+      u8.set(hash, 17);
+      dv.setUint16(49, fnameLen, false);
+      
+      // Combine payload
+      status.textContent = "جاري تجميع البيانات...";
+      const fullPayload = new Uint8Array(51 + fnameLen + compSize);
+      fullPayload.set(u8, 0);
+      fullPayload.set(fnameBytes, 51);
+      fullPayload.set(compressed, 51 + fnameLen);
+      
+      status.textContent = "جاري ترميز Base64...";
+      await new Promise(r => setTimeout(r, 10));
+      const b64 = bufferToBase64(fullPayload.buffer);
+      
+      status.textContent = "توليد مصفوفة البكسلات...";
+      await new Promise(r => setTimeout(r, 10));
+      // Base64 chars to 8-bit binary
+      let bitString = "";
+      for(let i = 0; i < b64.length; i++) {
+        bitString += b64.charCodeAt(i).toString(2).padStart(8, '0');
       }
-    }));
-
-    await Promise.all(tasks);
-    document.getElementById('zip-tx').textContent='جاري ضغط الملفات...';
-    await sleep(100);
-
-    const content=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
-    document.getElementById('zip-tx').textContent='✓ اكتمل!';
-
-    await sleep(300);
-    zipProg.classList.remove('on');
-    zipBtn.disabled=false;
-
-    dlBlob(content,`SoundCode-${mp3File?mp3File.name.replace(/\.[^.]+$/,''):'QR'}.zip`);
-    showAlert('enc-alert','ok','✓ تم تحميل ZIP! فك الضغط وأرسل المجلد للطرف الآخر');
-
-  }catch(err){
-    zipProg.classList.remove('on');
-    zipBtn.disabled=false;
-    showAlert('enc-alert','err','⚠ خطأ في إنشاء ZIP: '+err.message);
-  }
+      
+      const totalBits = bitString.length;
+      const dataGridSize = Math.ceil(Math.sqrt(totalBits));
+      const canvasSize = dataGridSize + 1 + 6;
+      const imgDim = canvasSize * cellSize;
+      
+      if(imgDim > 16000) {
+         throw new Error(`حجم الصورة ضخم جداً (${imgDim}x${imgDim}). المتصفح لن يتحمل هذا الحجم. قلل حجم الخلية أو استخدم ملف أصغر.`);
+      }
+      
+      status.textContent = `جاري رسم الصورة (الأبعاد: ${imgDim}x${imgDim} بكسل). قد يتجمد المتصفح ثواني قليلة.`;
+      await new Promise(r => setTimeout(r, 20)); // Yield to draw text
+      
+      // DRAW CANVAS
+      cvs.width = imgDim;
+      cvs.height = imgDim;
+      const ctx = cvs.getContext('2d', { alpha: false });
+      
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, imgDim, imgDim);
+      
+      // 3px cell border (Black finder pattern)
+      ctx.fillStyle = "black";
+      const bPx = 3 * cellSize;
+      ctx.fillRect(0, 0, imgDim, bPx); // Top
+      ctx.fillRect(0, imgDim - bPx, imgDim, bPx); // Bot
+      ctx.fillRect(0, 0, bPx, imgDim); // Left
+      ctx.fillRect(imgDim - bPx, 0, bPx, imgDim); // Right
+      
+      // 1px Timing pattern
+      for (let i = 0; i < dataGridSize + 1; i++) {
+          ctx.fillStyle = (i % 2 === 0) ? "black" : "white";
+          ctx.fillRect((3+i)*cellSize, 3*cellSize, cellSize, cellSize); // top row
+          ctx.fillRect(3*cellSize, (3+i)*cellSize, cellSize, cellSize); // left col
+      }
+      
+      // Data cells
+      ctx.fillStyle = "black";
+      let bitIdx = 0;
+      for (let r = 0; r < dataGridSize; r++) {
+          for (let c = 0; c < dataGridSize; c++) {
+              if (bitIdx < totalBits) {
+                  if (bitString[bitIdx] === '1') {
+                      let x = (4 + c) * cellSize;
+                      let y = (4 + r) * cellSize;
+                      ctx.fillRect(x, y, cellSize, cellSize);
+                  }
+                  bitIdx++;
+              }
+          }
+      }
+      
+      status.textContent = `✓ التشفير ناجح! الأبعاد النهائية: ${imgDim}x${imgDim}`;
+      document.getElementById('encBtn').disabled = false;
+      
+      downBtn.style.display = 'flex';
+      downBtn.href = cvs.toDataURL('image/png');
+      downBtn.download = file.name + '.sc.png';
+      
+    } catch(err) {
+      status.textContent = "⚠ خطأ: " + err.message;
+      document.getElementById('encBtn').disabled = false;
+    }
+  }, 50);
 }
 
-// ══════════════════════════════════════════
-// DECODE — MODE SWITCH
-// ══════════════════════════════════════════
-function setMode(m){
-  scanMode=m;
-  document.getElementById('stab-cam').classList.toggle('on',m==='cam');
-  document.getElementById('stab-up').classList.toggle('on',m==='up');
-  document.getElementById('mode-cam').style.display=m==='cam'?'block':'none';
-  document.getElementById('mode-up').style.display=m==='up'?'block':'none';
-  if(m!=='cam') stopCam();
-}
-
-// ══════════════════════════════════════════
-// DECODE — CAMERA
-// ══════════════════════════════════════════
-async function loadJsQR(){
-  if(jsQRready) return;
-  await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.min.js');
-  jsQRready=true;
-}
-
-async function toggleCam(){
-  await loadJsQR();
-  if(camStream){ stopCam(); return; }
-  try{
-    camStream=await navigator.mediaDevices.getUserMedia({
-      video:{facingMode:'environment',width:{ideal:1280},height:{ideal:1280}}
-    });
-    const v=document.getElementById('cam-vid');
-    v.srcObject=camStream;
-    document.getElementById('cam-btn').innerHTML='⏹ إيقاف الكاميرا';
-    document.getElementById('cam-st').textContent='● يبحث عن رموز...';
-    startScan();
-  }catch(e){
-    showAlert('dec-alert','err','⚠ تعذر فتح الكاميرا. جرب وضع "رفع صور".');
-  }
-}
-
-function startScan(){
-  const v=document.getElementById('cam-vid');
-  const c=document.createElement('canvas');
-  const ctx=c.getContext('2d');
-  scanIv=setInterval(()=>{
-    if(v.readyState!==v.HAVE_ENOUGH_DATA) return;
-    c.width=v.videoWidth; c.height=v.videoHeight;
-    ctx.drawImage(v,0,0);
-    const img=ctx.getImageData(0,0,c.width,c.height);
-    const code=jsQR(img.data,img.width,img.height,{inversionAttempts:'dontInvert'});
-    if(code) processQR(code.data,'كاميرا');
-  },250);
-}
-
-function stopCam(){
-  if(scanIv){ clearInterval(scanIv); scanIv=null; }
-  if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; }
-  document.getElementById('cam-btn').innerHTML='📷 بدء المسح';
-  document.getElementById('cam-st').textContent='انقر لبدء الكاميرا';
-}
-
-// ══════════════════════════════════════════
-// DECODE — UPLOAD
-// ══════════════════════════════════════════
-async function handleQRUp(e){
-  await loadJsQR();
-  const files=Array.from(e.target.files);
-  showAlert('dec-alert','info',`🔍 جاري قراءة ${files.length} صورة...`);
-
-  for(const f of files){
-    try{
-      const imgData=await fileToImgData(f);
-      const code=jsQR(imgData.data,imgData.width,imgData.height,{inversionAttempts:'attemptBoth'});
-      if(code) processQR(code.data,f.name);
-      else showAlert('dec-alert','warn',`⚠ لم يُقرأ QR في: ${f.name}`);
-    }catch(err){ console.warn(err); }
-  }
-
-  const got=Object.keys(decodedMap).length;
-  if(got>0 && totalExp && got>=totalExp){
-    showAlert('dec-alert','ok',`✓ اكتملت جميع الرموز (${got}/${totalExp})! اضغط "استعادة الأغنية"`);
-  }
-}
-
-// ══════════════════════════════════════════
-// DECODE — PROCESS QR DATA
-// ══════════════════════════════════════════
-function processQR(raw,src){
-  let p;
-  try{ p=JSON.parse(raw); }catch(e){ return; }
-  if(p.sc!==1) return;
-  if(decodedMap[p.i]!==undefined) return; // skip duplicate
-
-  decodedMap[p.i]=p.d;
-  if(p.t) totalExp=p.t;
-  if(p.n) songMeta.name=p.n;
-  if(p.ty) songMeta.type=p.ty;
-
-  const got=Object.keys(decodedMap).length;
-  document.getElementById('dec-body').style.display='block';
-  document.getElementById('sc-badge').textContent=`${got} / ${totalExp||'?'}`;
-
-  // Add to list
-  const el=document.createElement('div');
-  el.className='sc-item';
-  el.innerHTML=`<div class="sc-chk">✓</div><div class="sc-tx">${src.length>22?src.slice(0,22)+'…':src}</div><div class="sc-num">${p.i+1}/${totalExp||'?'}</div>`;
-  document.getElementById('sc-list').appendChild(el);
-
-  document.getElementById('dec-btn').disabled=!(totalExp && got>=totalExp);
-
-  if(totalExp && got>=totalExp){
-    document.getElementById('cam-st').textContent=`✓ اكتمل! ${got} رمز`;
-    stopCam();
-  } else {
-    document.getElementById('cam-st').textContent=`${got}/${totalExp||'?'} ✓`;
-  }
-}
-
-// ══════════════════════════════════════════
-// DECODE — RECONSTRUCT
-// ══════════════════════════════════════════
-function reconstruct(){
-  const keys=Object.keys(decodedMap).map(Number).sort((a,b)=>a-b);
-  if(totalExp && keys.length<totalExp){
-    showAlert('dec-alert','err',`⚠ ناقص ${totalExp-keys.length} رمز من أصل ${totalExp}`);
-    return;
-  }
-  try{
-    const b64=keys.map(k=>decodedMap[k]).join('');
-    const ab=b64ToAB(b64);
-    audioBlob=new Blob([ab],{type:songMeta.type||'audio/mpeg'});
-    const url=URL.createObjectURL(audioBlob);
-    const aud=document.getElementById('audio-el');
-    aud.src=url;
-    document.getElementById('pl-name').textContent=songMeta.name||'أغنية مستعادة';
-    document.getElementById('player').classList.add('on');
-    document.getElementById('player').scrollIntoView({behavior:'smooth'});
-    showAlert('dec-alert','ok',`✓ تمت الاستعادة! ${fmtSize(audioBlob.size)}`);
-  }catch(e){
-    showAlert('dec-alert','err','⚠ خطأ في إعادة البناء: '+e.message);
-  }
-}
-
-function saveAudio(){
-  if(!audioBlob) return;
-  dlBlob(audioBlob,songMeta.name||'soundcode-audio.mp3');
-}
-
-function resetDec(){
-  stopCam();
-  decodedMap={}; totalExp=null; songMeta={}; audioBlob=null;
-  document.getElementById('dec-body').style.display='none';
-  document.getElementById('sc-list').innerHTML='';
-  document.getElementById('player').classList.remove('on');
-  document.getElementById('dec-btn').disabled=true;
-  document.getElementById('qrin').value='';
-  hideAlert('dec-alert');
-}
-
-// ══════════════════════════════════════════
-// UTILS
-// ══════════════════════════════════════════
-function uint8ToB64Safe(u8){
-  // Chunked to avoid stack overflow
-  let bin=''; const BLOCK=8192;
-  for(let i=0;i<u8.length;i+=BLOCK)
-    bin+=String.fromCharCode.apply(null,u8.subarray(i,i+BLOCK));
-  return btoa(bin);
-}
-
-function b64ToAB(b64){
-  // Clean base64 string
-  const clean=b64.replace(/[^A-Za-z0-9+/=]/g,'');
-  const bin=atob(clean);
-  const u8=new Uint8Array(bin.length);
-  for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
-  return u8.buffer;
-}
-
-function fileToImgData(file){
-  return new Promise((res,rej)=>{
-    const img=new Image();
-    img.onload=()=>{
-      const c=document.createElement('canvas');
-      // Use original size for better QR reading accuracy
-      c.width=img.width; c.height=img.height;
-      const ctx=c.getContext('2d');
-      ctx.drawImage(img,0,0);
-      res(ctx.getImageData(0,0,c.width,c.height));
-    };
-    img.onerror=rej;
-    img.src=URL.createObjectURL(file);
-  });
-}
-
-function setProg(pct,lbl,step){
-  document.getElementById('prog-fill').style.width=pct+'%';
-  document.getElementById('prog-pct').textContent=pct+'%';
-  if(lbl) document.getElementById('prog-lbl').textContent=lbl;
-  if(step!==undefined) document.getElementById('prog-step').textContent=step;
-}
-
-function showAlert(id,type,msg){
-  const el=document.getElementById(id);
-  el.className=`alert on ${type}`;
-  el.textContent=msg;
-}
-function hideAlert(id){ document.getElementById(id).className='alert'; }
-
-function dlBlob(blob,name){
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=name;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-
-function fmtSize(b){
-  if(b<1024) return b+'B';
-  if(b<1048576) return (b/1024).toFixed(1)+'KB';
-  return (b/1048576).toFixed(2)+'MB';
-}
-
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-function loadScript(src){
-  return new Promise((res,rej)=>{
-    if(document.querySelector(`script[src="${src}"]`)){ res(); return; }
-    const s=document.createElement('script');
-    s.src=src; s.onload=res; s.onerror=rej;
-    document.head.appendChild(s);
-  });
+// ═════════════════════════════════════════
+// DECODE LOGIC
+// ═════════════════════════════════════════
+function decodeApp() {
+  const file = document.getElementById('imgIn').files[0];
+  if (!file) return;
+  const status = document.getElementById('statusDec');
+  const downBtn = document.getElementById('downDecBtn');
+  downBtn.style.display = 'none';
+  document.getElementById('decBtn').disabled = true;
+  
+  status.textContent = "تحميل الصورة...";
+  
+  const img = new Image();
+  img.onload = async () => {
+    try {
+      status.textContent = "تحليل البكسلات في المتصفح...";
+      await new Promise(r => setTimeout(r, 10)); // Yield
+      
+      const cvs = document.createElement('canvas');
+      cvs.width = img.width;
+      cvs.height = img.height;
+      const ctx = cvs.getContext('2d', { alpha: false });
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, cvs.width, cvs.height);
+      const data = imgData.data;
+      const totalPx = cvs.height;
+      
+      // Helper function to check if pixel is White
+      function isWhite(x,y) {
+         let i = (Math.floor(y) * cvs.width + Math.floor(x)) * 4;
+         return data[i] >= 128; // Basic R channel threshold
+      }
+      
+      // 1. Detect cell size via border
+      let bw = 0;
+      while (bw < totalPx && !isWhite(bw, bw)) { bw++; }
+      const cellSize = Math.floor(bw / 3);
+      if(cellSize <= 0) throw new Error("لم يتم التعرف على حدود الرمز (الصورة غير صالحة)");
+      
+      // 2. Timing row
+      const timingStart = 3 * cellSize;
+      let gridCount = 0;
+      for (let x = timingStart; x < totalPx - timingStart; x += cellSize) {
+          gridCount++;
+      }
+      const dataGridSize = gridCount - 1;
+      
+      // 3. Read Bits
+      let bits = "";
+      const dataStart = 4 * cellSize;
+      for (let r = 0; r < dataGridSize; r++) {
+          for (let c = 0; c < dataGridSize; c++) {
+              let y = dataStart + (r * cellSize) + (cellSize / 2);
+              let x = dataStart + (c * cellSize) + (cellSize / 2);
+              bits += isWhite(x,y) ? '0' : '1';
+          }
+      }
+      
+      status.textContent = "ترجمة البكسلات الى نصوص Base64...";
+      await new Promise(r => setTimeout(r, 10));
+      
+      // 4. Group into 8-bit characters
+      let b64 = "";
+      for (let i = 0; i < bits.length; i += 8) {
+          let byte = parseInt(bits.substring(i, i+8), 2);
+          if(!isNaN(byte) && byte > 0) {
+             b64 += String.fromCharCode(byte);
+          }
+      }
+      
+      // Try Base64 decoding
+      let rawString;
+      try {
+         rawString = atob(b64.split('\x00')[0]);
+      } catch(e) {
+         // Fallback if split null didn't work smoothly due to padding
+         let clean = b64.replace(/[^A-Za-z0-9+/=]/g, "");
+         rawString = atob(clean);
+      }
+      
+      let fullPayload = new Uint8Array(rawString.length);
+      for(let i = 0; i < rawString.length; i++) {
+          fullPayload[i] = rawString.charCodeAt(i);
+      }
+      
+      // 5. Parse Header
+      const dv = new DataView(fullPayload.buffer, fullPayload.byteOffset, fullPayload.byteLength);
+      const magic = uint8ToString(fullPayload.slice(0, 8));
+      if(magic !== "SNDCODE1") throw new Error("ملف سحري غير صالح أو البيانات معطوبة (Magic Header Mismatch).");
+      
+      const origSize = dv.getUint32(8, false);
+      const compSize = dv.getUint32(12, false);
+      const shaBytes = fullPayload.slice(17, 49);
+      const fnLen = dv.getUint16(49, false);
+      
+      const fname = uint8ToString(fullPayload.slice(51, 51 + fnLen));
+      const compData = fullPayload.slice(51 + fnLen, 51 + fnLen + compSize);
+      
+      status.textContent = "فك ضغط Zstd...";
+      await new Promise(r => setTimeout(r, 10));
+      if(!window.fzstd) throw new Error("مكتبة FZSTD مفقودة لفك الضغط.");
+      
+      const decompressed = fzstd.decompress(compData);
+      
+      // Integrity size check
+      if(decompressed.length !== origSize) {
+         throw new Error(`تعارض بالحجم: المتوقع ${origSize} والمخرجات ${decompressed.length}`);
+      }
+      
+      const blob = new Blob([decompressed], {type: "application/octet-stream"});
+      downBtn.style.display = 'flex';
+      downBtn.href = URL.createObjectURL(blob);
+      downBtn.download = fname;
+      
+      status.textContent = `✓ نجاح! تم استخراج: ${fname}`;
+      document.getElementById('decBtn').disabled = false;
+      
+    } catch(e) {
+      status.textContent = "⚠ فشل: " + e.message;
+      document.getElementById('decBtn').disabled = false;
+    }
+  };
+  img.onerror = () => {
+    status.textContent = "⚠ خطأ في قراءة الصورة.";
+    document.getElementById('decBtn').disabled = false;
+  };
+  img.src = URL.createObjectURL(file);
 }
 </script>
 </body>
