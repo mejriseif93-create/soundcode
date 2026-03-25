@@ -8,6 +8,9 @@ import struct
 import io
 import math
 
+Image.MAX_IMAGE_PIXELS = None  # Disable decompression bomb limits for large SoundCodes
+
+
 # --- Constants & Configuration ---
 MAGIC = b"SNDCODE1"
 HEADER_STRUCT_BASE = ">8sIIB32sH" # Magic, OrigSize, CompSize, CompID, SHA256, FNameLen
@@ -146,10 +149,12 @@ def decode_image(img):
 
 # --- UI Layout ---
 
+import streamlit.components.v1 as components
+
 st.title("🔊 SoundCode")
 st.caption("Store any file inside a custom high-density 2D visual barcode.")
 
-tab1, tab2, tab3 = st.tabs(["Encode", "Decode", "Settings"])
+tab1, tab2, tab3, tab4 = st.tabs(["Encode", "Decode", "Settings", "Mobile Web App"])
 
 with tab3:
     c_size = st.slider("Cell Size (px)", 2, 20, 4, help="Smaller = more dense, Larger = easier to scan/print")
@@ -192,3 +197,14 @@ with tab2:
                 st.download_button(f"Download {dec_name}", dec_bytes, dec_name)
             except Exception as e:
                 st.error(f"Decoding failed: {e}")
+
+with tab4:
+    st.markdown("### Mobile Offline Web Version")
+    st.caption("This advanced version handles chunks, QR grouping, and camera scanning directly in your browser without any server connection.")
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            html_code = f.read()
+        components.html(html_code, height=800, scrolling=True)
+    except FileNotFoundError:
+        st.error("index.html not found!")
+
