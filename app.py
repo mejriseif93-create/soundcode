@@ -141,23 +141,37 @@ def parse_chunk(raw: bytes) -> dict | None:
 
 def generate_qr_image(data: bytes, box_size: int = 10, border: int = 4,
                       dark_mode: bool = False) -> Image.Image:
-    """Generate a QR code image from binary data."""
-    # Guard: raise clear errors before the qrcode library raises cryptic ones.
-    # len==0 -> glog(0) crash;  len>MAX -> data_cache overflow crash.
+    """Generate a QR code image from binary data.
+
+    The qrcode library has a known bug (glog(0) ValueError) when raw binary
+    data contains 0x00 bytes or certain byte patterns.  We work around this by
+    base64-encoding the payload before handing it to the QR encoder.
+    Base64 output is ~33% larger, so MAX_PAYLOAD is set conservatively enough
+    that the encoded form still fits inside a v40-L QR code (4296 alphanumeric
+    chars max >> our ~3900-char base64 output for a 2925-byte payload).
+    """
     if len(data) == 0:
         raise ValueError("Cannot generate a QR code for an empty chunk (0 bytes).")
-    if len(data) > MAX_QR_BINARY:
+
+    # Encode binary -> base64 ASCII to avoid qrcode binary-mode glog(0) bug
+    encoded = base64.b64encode(data)
+
+    # v40-L alphanumeric capacity is 4296 chars; v40-L byte capacity is 2953.
+    # base64 of MAX_PAYLOAD (2925 bytes) = ceil(2925/3)*4 = 3900 chars — safe.
+    MAX_B64 = 4296
+    if len(encoded) > MAX_B64:
         raise ValueError(
-            f"Chunk too large: {len(data)} bytes exceeds QR v40-L max of "
-            f"{MAX_QR_BINARY} bytes. Reduce the chunk size in Settings."
+            f"Encoded chunk too large: {len(encoded)} base64 chars exceeds "
+            f"QR v40-L alphanumeric max of {MAX_B64}. Reduce chunk size in Settings."
         )
+
     qr = qrcode.QRCode(
         version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
         box_size=box_size,
         border=border,
     )
-    qr.add_data(data)
+    qr.add_data(encoded)
     qr.make(fit=True)
     fill = "white" if dark_mode else "black"
     back = "black" if dark_mode else "white"
@@ -393,7 +407,11 @@ with tab_dec:
         results = pyzbar_decode(img)
         added = 0
         for r in results:
-            raw = r.data
+            # Undo the base64 encoding applied in generate_qr_image
+            try:
+                raw = base64.b64decode(r.data)
+            except Exception:
+                continue  # not one of our QR codes
             chunk = parse_chunk(raw)
             if chunk is None:
                 continue
