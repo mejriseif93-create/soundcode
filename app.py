@@ -1,370 +1,210 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>SoundCode - Unified Code App</title>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap');
-:root { --bg: #0d0d0d; --sf: #161616; --bd: #2a2a2a; --ac: #00ff88; --tx: #f0f0f0; --tx2: #777; --r: 10px; }
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { background: var(--bg); color: var(--tx); font-family: 'Space Grotesk', sans-serif; padding: 20px; max-width: 500px; margin: 0 auto; }
-h2 { text-align: center; margin-bottom: 20px; font-weight: 700; color: #fff; }
-h2 span { color: var(--ac); }
-.tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-.tab { flex: 1; padding: 12px; background: var(--sf); border: 1px solid var(--bd); border-radius: var(--r); text-align: center; cursor: pointer; color: var(--tx2); font-weight: 600; }
-.tab.active { background: var(--ac); color: #000; border-color: var(--ac); }
-.panel { display: none; background: var(--sf); border: 1px solid var(--bd); border-radius: var(--r); padding: 20px; }
-.panel.active { display: block; animation: up 0.3s; }
-@keyframes up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: bold; }
-input[type=number], input[type=file] { width: 100%; padding: 10px; background: #000; color: #fff; border: 1px solid var(--bd); border-radius: 5px; margin-bottom: 15px; }
-.btn { width: 100%; padding: 15px; background: var(--ac); color: #000; font-weight: bold; border: none; border-radius: var(--r); cursor: pointer; font-size: 16px; margin-bottom: 10px; }
-.btn:active { transform: scale(0.98); }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.status { font-family: 'Fira Code', monospace; font-size: 12px; color: var(--tx2); margin: 10px 0; min-height: 20px; }
-.down-btn { display: none; width: 100%; text-align: center; padding: 15px; background: #1a2a1a; color: var(--ac); border: 1px solid rgba(0,255,136,0.3); border-radius: var(--r); text-decoration: none; font-weight: bold; margin-top: 10px; align-items: center; justify-content: center; }
-canvas { max-width: 100%; height: auto; border-radius: 5px; margin-top: 15px; display: block; }
-</style>
-<!-- Use FZSTD for Zstandard compression in the browser -->
-<script src="https://unpkg.com/fzstd"></script>
-</head>
-<body>
+import streamlit as st
+import numpy as np
+from PIL import Image, ImageDraw
+import zstandard as zstd
+import base64
+import hashlib
+import struct
+import io
+import math
 
-<h2>🎵 Sound<span>Code</span></h2>
+Image.MAX_IMAGE_PIXELS = None  # Disable decompression bomb limits for large SoundCodes
 
-<div class="tabs">
-  <div class="tab active" onclick="switchTab('enc')">⬆ تحويل (Encode)</div>
-  <div class="tab" onclick="switchTab('dec')">⬇ استعادة (Decode)</div>
-</div>
 
-<!-- ENCODE -->
-<div id="enc" class="panel active">
-  <label>حجم الخلية بالبكسل (Cell Size):</label>
-  <input type="number" id="cell_size" value="4" min="1" max="10" placeholder="مثال: 4">
-  <p style="font-size:11px; color:#aaa; margin-top:-10px; margin-bottom:15px;">حجم أصغر = كود أصغر، حجم أكبر = أسهل في القراءة.</p>
-  
-  <label>اختر ملف (صوت، صورة، أي ملف):</label>
-  <input type="file" id="fileIn">
-  
-  <button class="btn" id="encBtn" onclick="encodeApp()">⚡ توليد صورة SoundCode الموحدة</button>
-  <div class="status" id="statusEnc">بانتظار الملف...</div>
-  
-  <a class="down-btn" id="downBtn">⬇ تحميل الكود</a>
-  <canvas id="canvasOut"></canvas>
-</div>
+# --- Constants & Configuration ---
+MAGIC = b"SNDCODE1"
+HEADER_STRUCT_BASE = ">8sIIB32sH" # Magic, OrigSize, CompSize, CompID, SHA256, FNameLen
 
-<!-- DECODE -->
-<div id="dec" class="panel">
-  <label>الكاميرا لا تدعم الأكواد العملاقة حالياً.<br>اختر صورة الكود (PNG) مباشرة:</label>
-  <input type="file" id="imgIn" accept="image/png, image/jpeg">
-  
-  <button class="btn" id="decBtn" onclick="decodeApp()">🔍 استخراج الملف السري</button>
-  <div class="status" id="statusDec">بانتظار الصورة...</div>
-  
-  <a class="down-btn" id="downDecBtn">⬇ استرجاع (حفظ) الملف</a>
-</div>
+st.set_page_config(page_title="SoundCode Offline", layout="wide")
 
-<script>
-function switchTab(id) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  event.target.classList.add('active');
-}
+# --- Core Logic: Encoding ---
 
-// Helpers
-async function sha256(buffer) {
-  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-  return new Uint8Array(hashBuffer);
-}
+def encode_file(file_bytes, filename, cell_size, comp_level):
+    # 1. Compression
+    cctx = zstd.ZstdCompressor(level=comp_level)
+    compressed_data = cctx.compress(file_bytes)
+    
+    orig_size = len(file_bytes)
+    comp_size = len(compressed_data)
+    sha256_hash = hashlib.sha256(file_bytes).digest()
+    fname_bytes = filename.encode('utf-8')
+    fname_len = len(fname_bytes)
+    
+    # 2. Build Binary Payload
+    header = struct.pack(HEADER_STRUCT_BASE, MAGIC, orig_size, comp_size, 2, sha256_hash, fname_len)
+    full_payload = header + fname_bytes + compressed_data
+    
+    # 3. Base64 to Bits
+    b64_payload = base64.b64encode(full_payload)
+    # Convert every char to 7-bit (or 8-bit for safety with b64)
+    # Using 8-bit ensures we don't lose alignment
+    bit_string = "".join(f"{byte:08b}" for byte in b64_payload)
+    total_bits = len(bit_string)
+    
+    # 4. Grid Calculations
+    # We need space for: Data + 1px timing row/col + 3px border
+    data_grid_size = math.ceil(math.sqrt(total_bits))
+    padded_bits = bit_string.ljust(data_grid_size**2, '0')
+    
+    # Total Canvas = Data + Timing(1) + Border(3*2)
+    canvas_size = data_grid_size + 1 + 6
+    img_dim = canvas_size * cell_size
+    
+    # Create Image (L mode = Grayscale)
+    img = Image.new('L', (img_dim, img_dim), 255) # White background
+    draw = ImageDraw.Draw(img)
+    
+    # 5. Drawing Logic
+    # 3px Border (Physical pixels)
+    border_px = 3 * cell_size
+    draw.rectangle([0, 0, img_dim-1, img_dim-1], outline=0, width=border_px)
+    
+    # Timing Row/Col (Starting at offset 3)
+    for i in range(data_grid_size + 1):
+        color = 0 if i % 2 == 0 else 255
+        # Top timing row
+        draw.rectangle([(3+i)*cell_size, 3*cell_size, (4+i)*cell_size-1, 4*cell_size-1], fill=color)
+        # Left timing column
+        draw.rectangle([3*cell_size, (3+i)*cell_size, 4*cell_size-1, (4+i)*cell_size-1], fill=color)
+        
+    # 6. Data Mapping
+    bit_idx = 0
+    for r in range(data_grid_size):
+        for c in range(data_grid_size):
+            if bit_idx < len(padded_bits):
+                if padded_bits[bit_idx] == '1':
+                    # Offset by 4 (3 border + 1 timing)
+                    x1, y1 = (4 + c) * cell_size, (4 + r) * cell_size
+                    x2, y2 = x1 + cell_size - 1, y1 + cell_size - 1
+                    draw.rectangle([x1, y1, x2, y2], fill=0)
+                bit_idx += 1
+                
+    return img, data_grid_size, orig_size, comp_size
 
-function stringToUint8(str) {
-  return new TextEncoder().encode(str);
-}
-function uint8ToString(u8) {
-  return new TextDecoder().decode(u8);
-}
+# --- Core Logic: Decoding ---
 
-function bufferToBase64(buffer) {
-  let binary = '';
-  const bytes = new Uint8Array(buffer);
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
-}
+def decode_image(img):
+    img = img.convert('L')
+    arr = np.array(img)
+    total_px = arr.shape[0]
+    
+    # 1. Detect cell size via border
+    # Find first white pixel after the black border to calculate border width
+    border_width = 0
+    while arr[border_width, border_width] < 128:
+        border_width += 1
+    
+    cell_size = border_width // 3
+    
+    # 2. Timing row detection to get grid size
+    # Move inward by border + half a cell to hit the timing row
+    timing_start = 3 * cell_size
+    grid_count = 0
+    # Check along the top timing row
+    for x in range(timing_start, total_px - timing_start, cell_size):
+        grid_count += 1
+    
+    data_grid_size = grid_count - 1
+    
+    # 3. Read Bits
+    bits = []
+    data_start = 4 * cell_size
+    for r in range(data_grid_size):
+        for c in range(data_grid_size):
+            y = data_start + (r * cell_size)
+            x = data_start + (c * cell_size)
+            # Sample center of cell
+            sample = arr[y + cell_size//2, x + cell_size//2]
+            bits.append('1' if sample < 128 else '0')
+            
+    bit_string = "".join(bits)
+    
+    # 4. Reconstruct Payload
+    byte_list = [int(bit_string[i:i+8], 2) for i in range(0, len(bit_string), 8)]
+    b64_data = bytes(byte_list)
+    
+    # Clean padding and decode base64
+    try:
+        full_payload = base64.b64decode(b64_data.split(b'\x00')[0]) # Simple split might be risky, but b64 is specific
+    except:
+        # If padding causes issues, try stripping until valid
+        full_payload = base64.b64decode(b64_data[:(len(b64_data)//4)*4])
 
-function base64ToUint8(b64) {
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
+    # 5. Parse Header
+    magic, o_size, c_size, c_id, sha, fn_len = struct.unpack(HEADER_STRUCT_BASE, full_payload[:51])
+    if magic != MAGIC:
+        raise ValueError("Not a valid SoundCode image.")
+        
+    fname = full_payload[51 : 51+fn_len].decode('utf-8')
+    compressed_data = full_payload[51+fn_len : 51+fn_len+c_size]
+    
+    # 6. Decompress & Verify
+    dctx = zstd.ZstdDecompressor()
+    decompressed = dctx.decompress(compressed_data, max_output_size=o_size)
+    
+    if hashlib.sha256(decompressed).digest() != sha:
+        st.error("SHA-256 verification failed! Data might be corrupted.")
+        
+    return decompressed, fname
 
-// ═════════════════════════════════════════
-// ENCODE LOGIC
-// ═════════════════════════════════════════
-async function encodeApp() {
-  const file = document.getElementById('fileIn').files[0];
-  if (!file) return;
-  const cellSize = parseInt(document.getElementById('cell_size').value) || 2;
-  const status = document.getElementById('statusEnc');
-  const downBtn = document.getElementById('downBtn');
-  const cvs = document.getElementById('canvasOut');
-  
-  downBtn.style.display = 'none';
-  cvs.width = 0; cvs.height = 0;
-  document.getElementById('encBtn').disabled = true;
-  status.textContent = "جاري قراءة الملف...";
-  
-  setTimeout(async () => {
-    try {
-      if(!window.fzstd) throw new Error("مكتبة FZSTD لم يتم تحميلها (تتطلب انترنت).");
+# --- UI Layout ---
 
-      const arrayBuffer = await file.arrayBuffer();
-      const origSize = arrayBuffer.byteLength;
-      const fileBytes = new Uint8Array(arrayBuffer);
-      
-      status.textContent = "جاري حساب البصمة (SHA256)...";
-      const hash = await sha256(fileBytes);
-      
-      status.textContent = "جاري ضغط الملف (Zstd)...";
-      await new Promise(r => setTimeout(r, 10)); // UI yield
-      const compressed = fzstd.compress(fileBytes);
-      const compSize = compressed.length;
-      
-      const fnameBytes = stringToUint8(file.name);
-      const fnameLen = fnameBytes.length;
-      
-      // Build Header: MAGIC (8), OrigSize (4), CompSize (4), CompID (1), SHA256 (32), FNameLen (2)
-      const headerBuf = new ArrayBuffer(51);
-      const dv = new DataView(headerBuf);
-      const u8 = new Uint8Array(headerBuf);
-      
-      u8.set(stringToUint8("SNDCODE1"), 0);
-      dv.setUint32(8, origSize, false); // Big Endian required by Python
-      dv.setUint32(12, compSize, false);
-      dv.setUint8(16, 2); // 2 = Zstd
-      u8.set(hash, 17);
-      dv.setUint16(49, fnameLen, false);
-      
-      // Combine payload
-      status.textContent = "جاري تجميع البيانات...";
-      const fullPayload = new Uint8Array(51 + fnameLen + compSize);
-      fullPayload.set(u8, 0);
-      fullPayload.set(fnameBytes, 51);
-      fullPayload.set(compressed, 51 + fnameLen);
-      
-      status.textContent = "جاري ترميز Base64...";
-      await new Promise(r => setTimeout(r, 10));
-      const b64 = bufferToBase64(fullPayload.buffer);
-      
-      status.textContent = "توليد مصفوفة البكسلات...";
-      await new Promise(r => setTimeout(r, 10));
-      // Base64 chars to 8-bit binary
-      let bitString = "";
-      for(let i = 0; i < b64.length; i++) {
-        bitString += b64.charCodeAt(i).toString(2).padStart(8, '0');
-      }
-      
-      const totalBits = bitString.length;
-      const dataGridSize = Math.ceil(Math.sqrt(totalBits));
-      const canvasSize = dataGridSize + 1 + 6;
-      const imgDim = canvasSize * cellSize;
-      
-      if(imgDim > 16000) {
-         throw new Error(`حجم الصورة ضخم جداً (${imgDim}x${imgDim}). المتصفح لن يتحمل هذا الحجم. قلل حجم الخلية أو استخدم ملف أصغر.`);
-      }
-      
-      status.textContent = `جاري رسم الصورة (الأبعاد: ${imgDim}x${imgDim} بكسل). قد يتجمد المتصفح ثواني قليلة.`;
-      await new Promise(r => setTimeout(r, 20)); // Yield to draw text
-      
-      // DRAW CANVAS
-      cvs.width = imgDim;
-      cvs.height = imgDim;
-      const ctx = cvs.getContext('2d', { alpha: false });
-      
-      ctx.fillStyle = "white";
-      ctx.fillRect(0, 0, imgDim, imgDim);
-      
-      // 3px cell border (Black finder pattern)
-      ctx.fillStyle = "black";
-      const bPx = 3 * cellSize;
-      ctx.fillRect(0, 0, imgDim, bPx); // Top
-      ctx.fillRect(0, imgDim - bPx, imgDim, bPx); // Bot
-      ctx.fillRect(0, 0, bPx, imgDim); // Left
-      ctx.fillRect(imgDim - bPx, 0, bPx, imgDim); // Right
-      
-      // 1px Timing pattern
-      for (let i = 0; i < dataGridSize + 1; i++) {
-          ctx.fillStyle = (i % 2 === 0) ? "black" : "white";
-          ctx.fillRect((3+i)*cellSize, 3*cellSize, cellSize, cellSize); // top row
-          ctx.fillRect(3*cellSize, (3+i)*cellSize, cellSize, cellSize); // left col
-      }
-      
-      // Data cells
-      ctx.fillStyle = "black";
-      let bitIdx = 0;
-      for (let r = 0; r < dataGridSize; r++) {
-          for (let c = 0; c < dataGridSize; c++) {
-              if (bitIdx < totalBits) {
-                  if (bitString[bitIdx] === '1') {
-                      let x = (4 + c) * cellSize;
-                      let y = (4 + r) * cellSize;
-                      ctx.fillRect(x, y, cellSize, cellSize);
-                  }
-                  bitIdx++;
-              }
-          }
-      }
-      
-      status.textContent = `✓ التشفير ناجح! الأبعاد النهائية: ${imgDim}x${imgDim}`;
-      document.getElementById('encBtn').disabled = false;
-      
-      downBtn.style.display = 'flex';
-      downBtn.href = cvs.toDataURL('image/png');
-      downBtn.download = file.name + '.sc.png';
-      
-    } catch(err) {
-      status.textContent = "⚠ خطأ: " + err.message;
-      document.getElementById('encBtn').disabled = false;
-    }
-  }, 50);
-}
+import streamlit.components.v1 as components
 
-// ═════════════════════════════════════════
-// DECODE LOGIC
-// ═════════════════════════════════════════
-function decodeApp() {
-  const file = document.getElementById('imgIn').files[0];
-  if (!file) return;
-  const status = document.getElementById('statusDec');
-  const downBtn = document.getElementById('downDecBtn');
-  downBtn.style.display = 'none';
-  document.getElementById('decBtn').disabled = true;
-  
-  status.textContent = "تحميل الصورة...";
-  
-  const img = new Image();
-  img.onload = async () => {
-    try {
-      status.textContent = "تحليل البكسلات في المتصفح...";
-      await new Promise(r => setTimeout(r, 10)); // Yield
-      
-      const cvs = document.createElement('canvas');
-      cvs.width = img.width;
-      cvs.height = img.height;
-      const ctx = cvs.getContext('2d', { alpha: false });
-      ctx.drawImage(img, 0, 0);
-      const imgData = ctx.getImageData(0, 0, cvs.width, cvs.height);
-      const data = imgData.data;
-      const totalPx = cvs.height;
-      
-      // Helper function to check if pixel is White
-      function isWhite(x,y) {
-         let i = (Math.floor(y) * cvs.width + Math.floor(x)) * 4;
-         return data[i] >= 128; // Basic R channel threshold
-      }
-      
-      // 1. Detect cell size via border
-      let bw = 0;
-      while (bw < totalPx && !isWhite(bw, bw)) { bw++; }
-      const cellSize = Math.floor(bw / 3);
-      if(cellSize <= 0) throw new Error("لم يتم التعرف على حدود الرمز (الصورة غير صالحة)");
-      
-      // 2. Timing row
-      const timingStart = 3 * cellSize;
-      let gridCount = 0;
-      for (let x = timingStart; x < totalPx - timingStart; x += cellSize) {
-          gridCount++;
-      }
-      const dataGridSize = gridCount - 1;
-      
-      // 3. Read Bits
-      let bits = "";
-      const dataStart = 4 * cellSize;
-      for (let r = 0; r < dataGridSize; r++) {
-          for (let c = 0; c < dataGridSize; c++) {
-              let y = dataStart + (r * cellSize) + (cellSize / 2);
-              let x = dataStart + (c * cellSize) + (cellSize / 2);
-              bits += isWhite(x,y) ? '0' : '1';
-          }
-      }
-      
-      status.textContent = "ترجمة البكسلات الى نصوص Base64...";
-      await new Promise(r => setTimeout(r, 10));
-      
-      // 4. Group into 8-bit characters
-      let b64 = "";
-      for (let i = 0; i < bits.length; i += 8) {
-          let byte = parseInt(bits.substring(i, i+8), 2);
-          if(!isNaN(byte) && byte > 0) {
-             b64 += String.fromCharCode(byte);
-          }
-      }
-      
-      // Try Base64 decoding
-      let rawString;
-      try {
-         rawString = atob(b64.split('\x00')[0]);
-      } catch(e) {
-         // Fallback if split null didn't work smoothly due to padding
-         let clean = b64.replace(/[^A-Za-z0-9+/=]/g, "");
-         rawString = atob(clean);
-      }
-      
-      let fullPayload = new Uint8Array(rawString.length);
-      for(let i = 0; i < rawString.length; i++) {
-          fullPayload[i] = rawString.charCodeAt(i);
-      }
-      
-      // 5. Parse Header
-      const dv = new DataView(fullPayload.buffer, fullPayload.byteOffset, fullPayload.byteLength);
-      const magic = uint8ToString(fullPayload.slice(0, 8));
-      if(magic !== "SNDCODE1") throw new Error("ملف سحري غير صالح أو البيانات معطوبة (Magic Header Mismatch).");
-      
-      const origSize = dv.getUint32(8, false);
-      const compSize = dv.getUint32(12, false);
-      const shaBytes = fullPayload.slice(17, 49);
-      const fnLen = dv.getUint16(49, false);
-      
-      const fname = uint8ToString(fullPayload.slice(51, 51 + fnLen));
-      const compData = fullPayload.slice(51 + fnLen, 51 + fnLen + compSize);
-      
-      status.textContent = "فك ضغط Zstd...";
-      await new Promise(r => setTimeout(r, 10));
-      if(!window.fzstd) throw new Error("مكتبة FZSTD مفقودة لفك الضغط.");
-      
-      const decompressed = fzstd.decompress(compData);
-      
-      // Integrity size check
-      if(decompressed.length !== origSize) {
-         throw new Error(`تعارض بالحجم: المتوقع ${origSize} والمخرجات ${decompressed.length}`);
-      }
-      
-      const blob = new Blob([decompressed], {type: "application/octet-stream"});
-      downBtn.style.display = 'flex';
-      downBtn.href = URL.createObjectURL(blob);
-      downBtn.download = fname;
-      
-      status.textContent = `✓ نجاح! تم استخراج: ${fname}`;
-      document.getElementById('decBtn').disabled = false;
-      
-    } catch(e) {
-      status.textContent = "⚠ فشل: " + e.message;
-      document.getElementById('decBtn').disabled = false;
-    }
-  };
-  img.onerror = () => {
-    status.textContent = "⚠ خطأ في قراءة الصورة.";
-    document.getElementById('decBtn').disabled = false;
-  };
-  img.src = URL.createObjectURL(file);
-}
-</script>
-</body>
-</html>
+st.title("🔊 SoundCode")
+st.caption("Store any file inside a custom high-density 2D visual barcode.")
+
+tab1, tab2, tab3, tab4 = st.tabs(["Encode", "Decode", "Settings", "Mobile Web App"])
+
+with tab3:
+    c_size = st.slider("Cell Size (px)", 2, 20, 4, help="Smaller = more dense, Larger = easier to scan/print")
+    c_level = st.slider("Compression Level (Zstd)", 1, 22, 3)
+
+with tab1:
+    uploaded_file = st.file_uploader("Choose a file (Audio, Doc, etc.)")
+    if uploaded_file:
+        file_bytes = uploaded_file.read()
+        if st.button("Generate SoundCode"):
+            with st.spinner("Encoding and generating grid..."):
+                img, grid_dim, o_sz, c_sz = encode_file(file_bytes, uploaded_file.name, c_size, c_level)
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Grid Dimensions", f"{grid_dim}x{grid_dim}")
+                    st.metric("Original Size", f"{o_sz/1024:.2f} KB")
+                with col2:
+                    st.metric("Compressed Size", f"{c_sz/1024:.2f} KB")
+                    st.metric("Image Resolution", f"{img.width}x{img.height}")
+                
+                # Low-res preview
+                preview = img.copy()
+                preview.thumbnail((800, 800))
+                st.image(preview, caption="Low-res Preview (Download for full resolution)")
+                
+                # Download
+                buf = io.BytesIO()
+                img.save(buf, format="PNG")
+                st.download_button("Download SoundCode PNG", buf.getvalue(), f"{uploaded_file.name}.sc.png", "image/png")
+
+with tab2:
+    uploaded_code = st.file_uploader("Upload a SoundCode PNG", type=["png"])
+    if uploaded_code:
+        if st.button("Decode SoundCode"):
+            try:
+                sc_img = Image.open(uploaded_code)
+                dec_bytes, dec_name = decode_image(sc_img)
+                st.success(f"Successfully decoded: {dec_name}")
+                st.download_button(f"Download {dec_name}", dec_bytes, dec_name)
+            except Exception as e:
+                st.error(f"Decoding failed: {e}")
+
+with tab4:
+    st.markdown("### Mobile Offline Web Version")
+    st.caption("This advanced version handles chunks, QR grouping, and camera scanning directly in your browser without any server connection.")
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            html_code = f.read()
+        components.html(html_code, height=800, scrolling=True)
+    except FileNotFoundError:
+        st.error("index.html not found!")
+
