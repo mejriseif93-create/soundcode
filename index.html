@@ -26,8 +26,14 @@ input[type=number], input[type=file] { width: 100%; padding: 10px; background: #
 .down-btn { display: none; width: 100%; text-align: center; padding: 15px; background: #1a2a1a; color: var(--ac); border: 1px solid rgba(0,255,136,0.3); border-radius: var(--r); text-decoration: none; font-weight: bold; margin-top: 10px; align-items: center; justify-content: center; }
 canvas { max-width: 100%; height: auto; border-radius: 5px; margin-top: 15px; display: block; }
 </style>
-<!-- Use FZSTD for Zstandard compression in the browser -->
-<script src="https://unpkg.com/fzstd"></script>
+<!-- Use zstd-codec for Zstandard compression/decompression in the browser -->
+<script src="https://unpkg.com/zstd-codec/lib/zstd-codec.js"></script>
+<script>
+let zstdSimple = null;
+ZstdCodec.run(zstd => {
+  zstdSimple = new zstd.Simple();
+});
+</script>
 </head>
 <body>
 
@@ -123,7 +129,7 @@ async function encodeApp() {
   
   setTimeout(async () => {
     try {
-      if(!window.fzstd) throw new Error("مكتبة FZSTD لم يتم تحميلها (تتطلب انترنت).");
+      if(!zstdSimple) throw new Error("مكتبة ZSTD لم تكتمل من التحميل بعد (تتطلب انترنت). برجاء المحاولة بعد قليل.");
 
       const arrayBuffer = await file.arrayBuffer();
       const origSize = arrayBuffer.byteLength;
@@ -134,7 +140,7 @@ async function encodeApp() {
       
       status.textContent = "جاري ضغط الملف (Zstd)...";
       await new Promise(r => setTimeout(r, 10)); // UI yield
-      const compressed = fzstd.compress(fileBytes);
+      const compressed = zstdSimple.compress(fileBytes);
       const compSize = compressed.length;
       
       const fnameBytes = stringToUint8(file.name);
@@ -337,9 +343,9 @@ function decodeApp() {
       
       status.textContent = "فك ضغط Zstd...";
       await new Promise(r => setTimeout(r, 10));
-      if(!window.fzstd) throw new Error("مكتبة FZSTD مفقودة لفك الضغط.");
+      if(!zstdSimple) throw new Error("مكتبة ZSTD مفقودة لفك الضغط. انتظر قليلاً وجرب.");
       
-      const decompressed = fzstd.decompress(compData);
+      const decompressed = zstdSimple.decompress(compData);
       
       // Integrity size check
       if(decompressed.length !== origSize) {
