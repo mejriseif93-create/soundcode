@@ -50,10 +50,12 @@ except ImportError:
 import numpy as np
 
 # ─── Constants ───────────────────────────────────────────────────────
-HEADER_SIZE = 28  # 16 (uuid) + 4 (index) + 4 (total) + 4 (crc32)
-MAX_QR_BINARY = 2953  # QR v40-L max binary bytes
-DEFAULT_CHUNK = 2200  # safe payload per QR
-MAGIC = b"QRFE"  # 4-byte magic for our format
+HEADER_SIZE = 28          # 16 (uuid) + 4 (index) + 4 (total) + 4 (crc32)
+MAX_QR_BINARY = 2953      # QR v40-L max binary bytes
+# Safe payload = max QR capacity minus the header we prepend to every chunk
+MAX_PAYLOAD = MAX_QR_BINARY - HEADER_SIZE   # 2925 bytes
+DEFAULT_CHUNK = 2200      # default payload per QR (well under MAX_PAYLOAD)
+MAGIC = b"QRFE"           # 4-byte magic for our format
 
 # ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -122,6 +124,12 @@ def parse_chunk(raw: bytes) -> dict | None:
 def generate_qr_image(data: bytes, box_size: int = 10, border: int = 4,
                       dark_mode: bool = False) -> Image.Image:
     """Generate a QR code image from binary data."""
+    # Guard: raise a clear error before the qrcode library raises a cryptic one
+    if len(data) > MAX_QR_BINARY:
+        raise ValueError(
+            f"Chunk too large: {len(data)} bytes exceeds QR v40-L max of "
+            f"{MAX_QR_BINARY} bytes. Reduce the chunk size in Settings."
+        )
     qr = qrcode.QRCode(
         version=None,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -223,8 +231,8 @@ with tab_gen:
             saved_pct = f"{ratio:.1f}%"
             st.markdown(f'<div class="stat-card"><h3>{saved_pct}</h3><p>Space Saved</p></div>', unsafe_allow_html=True)
 
-        # Split
-        chunk_payload_size = settings["chunk_size"]
+        # FIX: chunk_payload_size must not exceed MAX_PAYLOAD (QR capacity minus header overhead)
+        chunk_payload_size = min(settings["chunk_size"], MAX_PAYLOAD)
         data_chunks = [compressed[i:i+chunk_payload_size] for i in range(0, len(compressed), chunk_payload_size)]
         total_chunks = len(data_chunks) + 1  # +1 for metadata chunk at index 0
 
@@ -249,9 +257,13 @@ with tab_gen:
 
             progress = st.progress(0, text="Generating QR codes...")
             for i, chunk_raw in enumerate(all_chunks_raw):
-                img = generate_qr_image(chunk_raw, box_size=settings["qr_box_size"],
-                                        border=settings["qr_border"],
-                                        dark_mode=settings["dark_qr"])
+                try:
+                    img = generate_qr_image(chunk_raw, box_size=settings["qr_box_size"],
+                                            border=settings["qr_border"],
+                                            dark_mode=settings["dark_qr"])
+                except ValueError as e:
+                    st.error(f"❌ {e}")
+                    st.stop()
                 qr_images.append(img)
                 progress.progress((i + 1) / len(all_chunks_raw),
                                   text=f"Generated {i+1}/{len(all_chunks_raw)} QR codes")
@@ -478,10 +490,20 @@ with tab_settings:
     st.header("⚙️ Settings")
 
     st.subheader("QR Generation")
+    # FIX: hard-cap the slider max at MAX_PAYLOAD so header overhead never pushes
+    # the total chunk size past the QR v40-L binary limit (2953 bytes).
+    safe_default = min(settings["chunk_size"], MAX_PAYLOAD)
     settings["chunk_size"] = st.slider(
         "Payload bytes per QR chunk",
-        min_value=500, max_value=2800, value=settings["chunk_size"], step=100,
-        help="Lower = more scannable but more QR codes. Max safe: ~2500 bytes."
+        min_value=500,
+        max_value=MAX_PAYLOAD,          # 2925 — leaves room for the 28-byte header
+        value=safe_default,
+        step=100,
+        help=(
+            f"Each chunk also carries a {HEADER_SIZE}-byte header, so the hard maximum "
+            f"payload is {MAX_PAYLOAD} bytes (= {MAX_QR_BINARY} QR limit − {HEADER_SIZE} header). "
+            "Lower values produce more QR codes but are easier to scan in poor conditions."
+        ),
     )
     settings["qr_box_size"] = st.slider("QR module size (px)", 4, 20, settings["qr_box_size"],
                                          help="Larger = bigger image, easier to scan")
@@ -503,6 +525,7 @@ with tab_settings:
         "reportlab": HAS_REPORTLAB,
         "header_size_bytes": HEADER_SIZE,
         "max_qr_binary_v40L": MAX_QR_BINARY,
+        "max_safe_payload": MAX_PAYLOAD,
     })
 
 # ══════════════════════════════════════════════════════════════════════
@@ -518,7 +541,8 @@ with tab_about:
     To encode files larger than this, we:
 
     1. **Compress** the file using Zstandard (or zlib) to reduce size
-    2. **Split** the compressed data into chunks of ~2,200 bytes each
+    2. **Split** the compressed data into chunks of up to **2,925 bytes** each  
+       *(2,953 QR max − 28-byte chunk header = 2,925 bytes safe payload)*
     3. **Wrap** each chunk with a header containing:
        - 16-byte UUID (identifies which file this chunk belongs to)
        - 4-byte chunk index
